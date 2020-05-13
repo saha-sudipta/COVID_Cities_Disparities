@@ -213,6 +213,11 @@ StLouis_data <- read_html("https://www.stlouis-mo.gov/covid-19/data/zip.cfm") %>
   mutate(Total = NA) %>%
   select(Geo_id, Positive, Total)
 
+StLouis_date <- read_html("https://www.stlouis-mo.gov/covid-19/data/index.cfm") %>%
+  html_nodes(xpath='//*[@id="CS_CCF_812675_812687"]/div/div[4]/div[1]/div[1]/span[1]') %>% 
+  html_text() %>%
+  { gsub(".*of ", "", .) } %>%
+  { mdy(gsub(" .*", "", .)) }
 
 #Las Vegas data
 
@@ -396,9 +401,9 @@ OK_data <- fread("https://storage.googleapis.com/ok-covid-gcs-public-download/ok
   rename(Geo_id=Zip, Positive=Cases) %>% mutate(Total=NA) %>%
   select(Geo_id, Positive, Total)
 
-OK_time <- ymd(fread("https://storage.googleapis.com/ok-covid-gcs-public-download/oklahoma_cases_zip.csv")$ReportDate[1])
+OK_time <- ymd(fread("htt90ops://storage.googleapis.com/ok-covid-gcs-public-download/oklahoma_cases_zip.csv")$ReportDate[1])
 
-#Authenticate Google Sheets
-sheets_auth(cache = ".secrets", email = "sudipta.bba@gmail.com")
 
-numbers <- tesseract(options = list(tessedit_char_whitelist = ",0123456789"))
+##COMBINE DATA
+
+all_data
