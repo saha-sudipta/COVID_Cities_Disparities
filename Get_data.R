@@ -213,6 +213,11 @@ StLouis_data <- read_html("https://www.stlouis-mo.gov/covid-19/data/zip.cfm") %>
   mutate(Total = NA) %>%
   select(Geo_id, Positive, Total)
 
+StLouis_date <- read_html("https://www.stlouis-mo.gov/covid-19/data/index.cfm") %>%
+  html_nodes(xpath='//*[@id="CS_CCF_812675_812687"]/div/div[4]/div[1]/div[1]/span[1]') %>% 
+  html_text() %>%
+  { gsub(".*of ", "", .) } %>%
+  { mdy(gsub(" .*", "", .)) }
 
 #Las Vegas data
 
@@ -298,7 +303,8 @@ Fulton_data <- rbind(Fulton_data1, Fulton_data2)
 #Illinois provides demographics by zip code as well
 
 Illinois_data <- fromJSON("https://www.dph.illinois.gov/sitefiles/COVIDZip.json")$zip_values %>%
-  select(1:3) %>% rename(Geo_id=zip, Positive=confirmed_cases, Total=total_tested)
+  select(1:3) %>% rename(Geo_id=zip, Positive=confirmed_cases, Total=total_tested) %>% 
+  select(Geo_id, Positive, Total)
 
 Illinois_time <- ymd(paste0(unlist(fromJSON("https://www.dph.illinois.gov/sitefiles/COVIDZip.json")$LastUpdateDate), 
                         collapse = "-"))
@@ -396,9 +402,15 @@ OK_data <- fread("https://storage.googleapis.com/ok-covid-gcs-public-download/ok
   rename(Geo_id=Zip, Positive=Cases) %>% mutate(Total=NA) %>%
   select(Geo_id, Positive, Total)
 
-OK_time <- ymd(fread("https://storage.googleapis.com/ok-covid-gcs-public-download/oklahoma_cases_zip.csv")$ReportDate[1])
+OK_time <- ymd(fread("htt90ops://storage.googleapis.com/ok-covid-gcs-public-download/oklahoma_cases_zip.csv")$ReportDate[1])
 
-#Authenticate Google Sheets
-sheets_auth(cache = ".secrets", email = "sudipta.bba@gmail.com")
 
-numbers <- tesseract(options = list(tessedit_char_whitelist = ",0123456789"))
+##COMBINE DATA
+
+all_data <- rbind(Alameda_data, Austin_data, AZ_data, Boston_data, Chicago_data, DeKalb_data, ElPaso_data,
+                  Erie_data, FL_data, Fulton_data, Harris_data, Illinois_data, LasVegas_data, MD_data, NC_data, 
+                  NOLA_data, NYC_data, OK_data, Omaha_data, Oregon_data, Penn_data, Philly_data, Sacramento_data, SD_data,
+                  SF_data, StLouis_data, WI_data)
+
+write_csv(all_data, "Data_log/all_data_May13_2020.csv")
+write_csv(all_data, "all_data_latest.csv")
