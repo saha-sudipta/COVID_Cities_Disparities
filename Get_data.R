@@ -491,7 +491,7 @@ Fulton_data1 <- extract_tables(Fulton_link, pages=5, output="data.frame", method
                                guess=FALSE, area = list(c(74.5, 33.4, 739.4, 571.2)), 
                                columns = list(c(100,220,330,460))) %>% `[[`(1) 
 
-Fulton_time <- mdy(Fulton_data1[2,2])
+Fulton_time <- mdy(Fulton_data1[2,3])
 
 Fulton_data1 <- Fulton_data1 %>% slice(-1:-2) %>% 
   rename(Geo_id=X, Positive=Current.Count) %>% 
@@ -583,8 +583,8 @@ Oregon_link <- read_html("https://govstatus.egov.com/OR-OHA-COVID-19") %>%
 
 Oregon_time <- ymd(gsub("-FINAL.*", "", gsub(".*Report-", "", Oregon_link)))
 
-Oregon_data <- extract_tables(Oregon_link, pages=c(9,10,11,12,13,14,15,16)) %>%
-  { do.call(rbind, .[2:8])} %>% { as.data.frame(.)} %>%
+Oregon_data <- extract_tables(Oregon_link, pages=c(8,9,10,11,12,13,14,15)) %>%
+  { do.call(rbind, .[1:8])} %>% { as.data.frame(.)} %>%
   slice(-1) %>%
   rename(Geo_id=V1, Positive = V2) %>%
   mutate(Total=NA, Positive = ifelse(Positive=="1-9", 0, Positive),
@@ -716,7 +716,7 @@ OK_data <- fread("https://storage.googleapis.com/ok-covid-gcs-public-download/ok
 ##Louisiana data
 
 Louisiana_links <- fromJSON("https://services5.arcgis.com/O5K6bb5dZVZcTo5M/ArcGIS/rest/services?f=pjson")$services %>%
-  filter(grepl("Tracts_05102020", name, ignore.case = TRUE) |
+  filter(grepl("Tracts_05172020", name, ignore.case = TRUE) |
            grepl(paste0("Tracts_", str_pad(as.character(month(Sys.Date())), 2, pad="0"), as.character(day(Sys.Date())), "2020"), name, ignore.case = TRUE)) %>%
   slice(nrow(.))
 
@@ -726,8 +726,8 @@ Louisiana_time <- read_html(paste0(Louisiana_links$url, "/0")) %>%
   { mdy(gsub(" .*", "", .)) }
 
 
-Louisiana_data <- fromJSON(paste0(Louisiana_links$url, "/0/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnGeometry=false&returnCentroid=false&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson"))$features$attributes %>%
-  rename(Geo_id = GEOID, Positive = CaseCount) %>%
+LLouisiana_data <- fromJSON(paste0(Louisiana_links$url, "/0/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnGeometry=false&returnCentroid=false&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson"))$features$attributes %>%
+  rename(Geo_id = TractID, Positive = CaseCount) %>%
   mutate(Positive = ifelse(Positive==" ", 0, 
                            ifelse(Positive=="1 to 5", 1, Positive))) %>%
   mutate(Total=NA, Deaths=NA, Geo_id_type="CT", Update_time=Louisiana_time) %>%
@@ -743,7 +743,7 @@ Louisiana_data <- fromJSON(paste0(Louisiana_links$url, "/0/query?where=0%3D0&obj
 ##Dallas
 
 Dallas_links <- fromJSON("https://services3.arcgis.com/kJv6AkjtZisjy0Ed/ArcGIS/rest/services?f=pjson")$services %>%
-  filter(grepl("ZipMap_Prd_515", name, ignore.case = TRUE) |
+  filter(grepl("ZipMap_Prd_519", name, ignore.case = TRUE) |
            grepl(paste0("ZipMap_Prd_", as.character(month(Sys.Date())), as.character(day(Sys.Date()))), name, ignore.case = TRUE)) %>%
   slice(nrow(.))
 
@@ -791,7 +791,7 @@ Manual_data <- Manual_data %>%
          Positive=as.integer(Positive),
          Total=as.integer(Total),
          Deaths=as.integer(Deaths),
-         Update_time=mdy(Update_time)) %>%
+         Update_time=ymd(Update_time)) %>%
   select(Geo_id, Geo_id_type, Positive, Total, Deaths, Update_time, Source_geo)
 
 range_write("https://docs.google.com/spreadsheets/d/1bk33v5C09NSfOisxFIa5mjB9tyocAbpJybztc5tSLtU/edit?usp=sharing",
@@ -803,5 +803,5 @@ all_data <- rbind(Alameda_data, Austin_data, AZ_data, Boston_data, Chicago_data,
                   NC_data, NOLA_data, NYC_data, OK_data, Omaha_data, Oregon_data, Penn_data, Philly_data, Sacramento_data, 
                   SC_data, SD_data, SF_data, StLouis_data, Tarrant_data, WI_data, Manual_data)
 
-write_csv(all_data, "Data_log/all_data_May17_2020.csv")
+write_csv(all_data, "Data_log/all_data_May21_2020.csv")
 write_csv(all_data, "all_data_latest.csv")
