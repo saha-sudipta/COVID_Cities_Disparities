@@ -19,10 +19,11 @@ options(scipen = 999)
 
 
 #Download these pdfs into working diretory
+
 #South Carolina
 #South Carolina data
-SC_time <- mdy(05152020) ##CHANGE DATE
-SC_data <- extract_tables("~/Downloads/TableOption2.pdf", output = "data.frame", method="stream")
+SC_time <- mdy(05192020) ##CHANGE DATE
+SC_data <- extract_tables("~/Downloads/TableOption2 (1).pdf", output = "data.frame", method="stream")
 SC_data <- bind_rows(lapply(SC_data, function(x){mutate_all(x, as.character)})) %>%
   filter(!is.na(Rep..Cases)) %>% rename(Positive=Rep..Cases, Geo_id=Zip) %>%
   mutate(Deaths=NA, Total=NA, Update_time=SC_time, Geo_id_type="ZCTA") %>% 
@@ -36,19 +37,20 @@ SC_data <- bind_rows(lapply(SC_data, function(x){mutate_all(x, as.character)})) 
 
 #New York
 
-NYC_time <- read_html("https://github.com/nychealth/coronavirus-data/commits/257399da1e7e974e9366bf4c5d1d3bfbc6dc9093/tests-by-zcta.csv") %>%
+NYC_time <- read_html("https://github.com/nychealth/coronavirus-data/commits/master/data-by-modzcta.csv") %>%
   html_nodes(xpath='//*[@id="js-repo-pjax-container"]/div[2]/div/div[2]/div[1]') %>%
   html_text() %>% { gsub("\n", "", .) } %>%
   { str_trim(.) } %>%
   { gsub("Commits on ", "", .) } %>% 
   { mdy(.) }
 
-
-NYC_data <- fread("https://raw.githubusercontent.com/nychealth/coronavirus-data/master/tests-by-zcta.csv") %>%
-  mutate(MODZCTA = ifelse(is.na(MODZCTA), "Unassigned", MODZCTA), Deaths=NA, Update_time=NYC_time,
-         Geo_id_type="ZCTA") %>%
-  select(-zcta_cum.perc_pos) %>%
-  rename(Geo_id = MODZCTA) %>% 
+NYC_data <- fread("https://raw.githubusercontent.com/nychealth/coronavirus-data/master/data-by-modzcta.csv") %>%
+  mutate(MODIFIED_ZCTA = ifelse(is.na(MODIFIED_ZCTA), "Unassigned", MODIFIED_ZCTA), 
+         Update_time=NYC_time,
+         Geo_id_type="Modified ZCTA", 
+         Total=round(COVID_CASE_COUNT/(PERCENT_POSITIVE/100))) %>%
+  rename(Geo_id=MODIFIED_ZCTA, 
+         Positive=COVID_CASE_COUNT, Deaths=COVID_DEATH_COUNT) %>%
   mutate(Geo_id=as.character(Geo_id),
          Geo_id_type=as.character(Geo_id_type),
          Positive=as.integer(Positive),
@@ -56,6 +58,19 @@ NYC_data <- fread("https://raw.githubusercontent.com/nychealth/coronavirus-data/
          Deaths=as.integer(Deaths),
          Source_geo="New York City") %>%
   select(Geo_id, Geo_id_type, Positive, Total, Deaths, Update_time, Source_geo)
+# 
+# NYC_data <- fread("https://raw.githubusercontent.com/nychealth/coronavirus-data/master/tests-by-zcta.csv") %>%
+#   mutate(MODZCTA = ifelse(is.na(MODZCTA), "Unassigned", MODZCTA), Deaths=NA, Update_time=NYC_time,
+#          Geo_id_type="ZCTA") %>%
+#   select(-zcta_cum.perc_pos) %>%
+#   rename(Geo_id = MODZCTA) %>% 
+#   mutate(Geo_id=as.character(Geo_id),
+#          Geo_id_type=as.character(Geo_id_type),
+#          Positive=as.integer(Positive),
+#          Total=as.integer(Total),
+#          Deaths=as.integer(Deaths),
+#          Source_geo="New York City") %>%
+#   select(Geo_id, Geo_id_type, Positive, Total, Deaths, Update_time, Source_geo)
 
 
 #Get data from Boston
@@ -161,12 +176,12 @@ Chicago_data <- Chicago_data %>%
 
 
 #Get Maryland data. # Less than 7 is protected, and these are converted to 0s
-MD_time <- read_html("https://services.arcgis.com/njFNhDsUCentVYJW/arcgis/rest/services/ZIPCodes_MD_1/FeatureServer/0") %>%
+MD_time <- read_html("https://services.arcgis.com/njFNhDsUCentVYJW/ArcGIS/rest/services/MDH_COVID_19_Dashboard_Feature_Layer_ZIPCodes_MEMA/FeatureServer/0") %>%
   html_node(xpath = "/html/body/div[2]") %>% html_text() %>%
   { gsub(".*Date: ", "", .) } %>%
   { mdy(gsub(" .*", "", .)) }
 
-MD_data <- fromJSON('https://services.arcgis.com/njFNhDsUCentVYJW/arcgis/rest/services/ZIPCodes_MD_1/FeatureServer/0/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnGeometry=false&returnCentroid=false&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson')$features$attributes %>%
+MD_data <- fromJSON('https://services.arcgis.com/njFNhDsUCentVYJW/ArcGIS/rest/services/MDH_COVID_19_Dashboard_Feature_Layer_ZIPCodes_MEMA/FeatureServer/0/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnGeometry=false&returnCentroid=false&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson')$features$attributes %>%
   rename(Geo_id = ZIPCODE1, Positive = ProtectedCount) %>%
   mutate(Positive = ifelse(is.na(Positive), 0, Positive), Total=NA) %>%
   mutate(Update_time=MD_time, Geo_id_type="ZCTA", Deaths=NA) %>%
@@ -208,12 +223,17 @@ SD_link <- read_html("https://www.sandiegocounty.gov/content/sdc/hhsa/programs/p
 
 SD_time <- anydate(extract_metadata(SD_link)$modified)
 
-SD_data_raw <- extract_tables(SD_link, pages=1, output="data.frame") %>% `[[`(1)
+SD_data_1 <- extract_tables(SD_link, pages=1, output="data.frame", method="lattice",
+                              area = list(c(121.7, 48.9, 665.3, 235.9))) %>% `[[`(1)
 
-SD_data1 <- SD_data_raw %>% select(X, Count) %>% rename(Geo_id=X, Positive = Count)
-SD_data2 <- SD_data_raw %>% select(Zip.Code.1, Count.1) %>% rename(Geo_id=Zip.Code.1, Positive=Count.1)
+SD_data_2 <- extract_tables(SD_link, pages=1, output="data.frame", method="lattice",
+                            area = list(c(121.7, 258.0, 665.3, 447.4))) %>% `[[`(1)
 
-SD_data <- rbind(SD_data1, SD_data2) %>%
+# SD_data1 <- SD_data_raw %>% select(X, Count) %>% rename(Geo_id=X, Positive = Count)
+# SD_data2 <- SD_data_raw %>% select(Zip.Code.1, Count.1) %>% rename(Geo_id=Zip.Code.1, Positive=Count.1)
+
+SD_data <- rbind(SD_data_1, SD_data_2) %>%
+  rename(Geo_id = Zip.Code, Positive=Count) %>%
   mutate(Geo_id = ifelse(Geo_id=="Unknown***", "Unassigned", Geo_id),
          Total = NA, Positive= as.integer(gsub(",", "", Positive)), Geo_id_type="ZCTA", Deaths=NA) %>%
   filter(Geo_id != "San Diego County Total" & Geo_id != "") %>%
@@ -371,10 +391,10 @@ StLouis_data <- read_html("https://www.stlouis-mo.gov/covid-19/data/zip.cfm") %>
 
 #Las Vegas data. Counts under 5 suppressed.
 
-LasVegas_link <- read_html("http://www.southernnevadahealthdistrict.org/coronavirus") %>%
+LasVegas_link <- read_html("https://www.southernnevadahealthdistrict.org/covid-19-case-count-archive/") %>%
   html_nodes("a") %>% html_attr("href") %>% 
   { .[grepl("zip", ., ignore.case=TRUE)] } %>%
-  { .[grepl("csv", ., ignore.case=TRUE)] }
+  { .[grepl("csv", ., ignore.case=TRUE)] } %>% { .[1] }
 
 LasVegas_date <- LasVegas_link %>% 
 { gsub(".*updates/", "", .) } %>%
