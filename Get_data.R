@@ -19,11 +19,11 @@ options(scipen = 999)
 
 
 #Download these pdfs into working diretory
-
+#https://www.scdhec.gov/infectious-diseases/viruses/coronavirus-disease-2019-covid-19/sc-cases-county-zip-code-covid-19
 #South Carolina
 #South Carolina data
-SC_time <- mdy(05192020) ##CHANGE DATE
-SC_data <- extract_tables("~/Downloads/TableOption2 (1).pdf", output = "data.frame", method="stream")
+SC_time <- mdy(05212020) ##CHANGE DATE
+SC_data <- extract_tables("~/Downloads/TableOption2 (2).pdf", output = "data.frame", method="stream")
 SC_data <- bind_rows(lapply(SC_data, function(x){mutate_all(x, as.character)})) %>%
   filter(!is.na(Rep..Cases)) %>% rename(Positive=Rep..Cases, Geo_id=Zip) %>%
   mutate(Deaths=NA, Total=NA, Update_time=SC_time, Geo_id_type="ZCTA") %>% 
@@ -76,7 +76,7 @@ NYC_data <- fread("https://raw.githubusercontent.com/nychealth/coronavirus-data/
 #Get data from Boston
 
 Boston_time <- read_html("https://bphc.org/whatwedo/infectious-diseases/Infectious-Diseases-A-to-Z/covid-19/Pages/default.aspx") %>%
-  html_nodes(xpath='//*[@id="WebPartWPQ3"]/div[1]/div[2]/p[2]/em') %>%
+  html_nodes(xpath='//*[@id="WebPartWPQ3"]/div[1]/div[2]/p[3]/em') %>%
   html_text() %>%
   { gsub("WEEKLY NEIGHBORHOOD DATA (Updated ", "", ., fixed=TRUE) } %>%
   { gsub(")", "", ., fixed=TRUE) } %>%
@@ -224,10 +224,10 @@ SD_link <- read_html("https://www.sandiegocounty.gov/content/sdc/hhsa/programs/p
 SD_time <- anydate(extract_metadata(SD_link)$modified)
 
 SD_data_1 <- extract_tables(SD_link, pages=1, output="data.frame", method="lattice",
-                              area = list(c(121.7, 48.9, 665.3, 235.9))) %>% `[[`(1)
+                              area = list(c(121.7, 46.5, 662.9, 230.9))) %>% `[[`(1)
 
 SD_data_2 <- extract_tables(SD_link, pages=1, output="data.frame", method="lattice",
-                            area = list(c(121.7, 258.0, 665.3, 447.4))) %>% `[[`(1)
+                            area = list(c(121.7, 258.0, 662.9, 500))) %>% `[[`(1)
 
 # SD_data1 <- SD_data_raw %>% select(X, Count) %>% rename(Geo_id=X, Positive = Count)
 # SD_data2 <- SD_data_raw %>% select(Zip.Code.1, Count.1) %>% rename(Geo_id=Zip.Code.1, Positive=Count.1)
@@ -236,7 +236,7 @@ SD_data <- rbind(SD_data_1, SD_data_2) %>%
   rename(Geo_id = Zip.Code, Positive=Count) %>%
   mutate(Geo_id = ifelse(Geo_id=="Unknown***", "Unassigned", Geo_id),
          Total = NA, Positive= as.integer(gsub(",", "", Positive)), Geo_id_type="ZCTA", Deaths=NA) %>%
-  filter(Geo_id != "San Diego County Total" & Geo_id != "") %>%
+  filter(Geo_id != "San Diego County" & Geo_id != "") %>%
   mutate(Geo_id=as.character(Geo_id),
          Geo_id_type=as.character(Geo_id_type),
          Positive=as.integer(Positive),
@@ -458,16 +458,16 @@ NC_data <- fromJSON("https://services.arcgis.com/iFBq2AW9XO0jYYF7/arcgis/rest/se
 #DeKalb County data
 
 DeKalb_time <- read_html("https://www.dekalbhealth.net/covid-19dekalb/") %>%
-  html_nodes("strong") %>% html_text() %>%
-  { .[grepl("Data Pulled", .)]} %>%
-  { gsub(".*Pulled: ", "", .) } %>%
-  { mdy(gsub(" .*", "", .)) }
+  html_node(xpath = '//*[@id="cs-content"]/div[2]/div/div/div[1]/div/p[1]') %>% html_text() %>%
+  { gsub(".*Updated: ", "", .) } %>%
+  { mdy(.) }
 
 
 DeKalb_data <- read_html("https://www.dekalbhealth.net/covid-19dekalb/") %>%
   html_nodes("table") %>% html_table() %>% `[[`(1) %>% slice(-1) %>%
-  rename(Geo_id=X1, Positive = X2) %>%
+  rename(Geo_id=X1, Positive = X3) %>%
   filter(Geo_id != "Grand Total") %>%
+  mutate(Positive=ifelse(Positive=="<5", 0, Positive)) %>%
   mutate(Positive = as.integer(Positive), Total=NA, 
          Geo_id = ifelse(Geo_id=="Unknown", "Unassigned", Geo_id),
          Deaths=NA, Geo_id_type="ZCTA", Update_time=DeKalb_time) %>%
@@ -488,8 +488,8 @@ Fulton_link <- read_html("https://www.fultoncountyga.gov/covid-19/epidemiology-r
   { paste0("https://www.fultoncountyga.gov", .)}
 
 Fulton_data1 <- extract_tables(Fulton_link, pages=5, output="data.frame", method="stream",
-                               guess=FALSE, area = list(c(74.5, 33.4, 739.4, 571.2)), 
-                               columns = list(c(100,220,330,460))) %>% `[[`(1) 
+                               guess=FALSE, area = list(c(74.5, 33.4, 745, 571.2)), 
+                                 columns = list(c(89.4,160,250,460))) %>% `[[`(1) 
 
 Fulton_time <- mdy(Fulton_data1[2,3])
 
@@ -507,8 +507,8 @@ Fulton_data1 <- Fulton_data1 %>% slice(-1:-2) %>%
   select(Geo_id, Geo_id_type, Positive, Total, Deaths, Update_time, Source_geo)
   
 Fulton_data2 <- extract_tables(Fulton_link, pages=6, method="stream",
-                               guess=FALSE, area = list(c(47.6, 31.0, 233, 576.1)), 
-                               columns = list(c(100,220,330,460))) %>% `[[`(1)  %>% 
+                               guess=FALSE, area = list(c(47.6, 31.0, 150, 576.1)), 
+                               columns = list(c(89.4,160,250,460))) %>% `[[`(1)  %>% 
   { as.data.frame(.) } %>% 
   rename(Geo_id = V1, Positive = V3) %>% 
   mutate(Positive=as.integer(as.character(Positive)),
@@ -595,6 +595,8 @@ Oregon_data <- extract_tables(Oregon_link, pages=c(8,9,10,11,12,13,14,15)) %>%
          Total=as.integer(Total),
          Deaths=as.integer(Deaths),
          Source_geo="Oregon") %>%
+  filter(Geo_id != "Cases with unknown ZIP codes" &
+           Geo_id != "ZIP codes with <1,000 population") %>%
   select(Geo_id, Geo_id_type, Positive, Total, Deaths, Update_time, Source_geo)
   
 
@@ -650,7 +652,7 @@ Omaha_data <- fromJSON("https://services.arcgis.com/pDAi2YK0L0QxVJHj/arcgis/rest
 #Get Austin data
 
 Austin_links <- fromJSON("https://services.arcgis.com/0L95CJ0VTaxqcmED/ArcGIS/rest/services?f=pjson")$services %>%
-  filter(grepl("web0517", name, ignore.case = TRUE) |
+  filter(grepl("web0522", name, ignore.case = TRUE) |
            grepl(paste0("web", str_pad(as.character(month(Sys.Date())), 2, pad="0"), as.character(day(Sys.Date()))), name, ignore.case = TRUE)) %>%
   slice(nrow(.))
 
@@ -726,7 +728,7 @@ Louisiana_time <- read_html(paste0(Louisiana_links$url, "/0")) %>%
   { mdy(gsub(" .*", "", .)) }
 
 
-LLouisiana_data <- fromJSON(paste0(Louisiana_links$url, "/0/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnGeometry=false&returnCentroid=false&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson"))$features$attributes %>%
+Louisiana_data <- fromJSON(paste0(Louisiana_links$url, "/0/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnGeometry=false&returnCentroid=false&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson"))$features$attributes %>%
   rename(Geo_id = TractID, Positive = CaseCount) %>%
   mutate(Positive = ifelse(Positive==" ", 0, 
                            ifelse(Positive=="1 to 5", 1, Positive))) %>%
@@ -743,7 +745,7 @@ LLouisiana_data <- fromJSON(paste0(Louisiana_links$url, "/0/query?where=0%3D0&ob
 ##Dallas
 
 Dallas_links <- fromJSON("https://services3.arcgis.com/kJv6AkjtZisjy0Ed/ArcGIS/rest/services?f=pjson")$services %>%
-  filter(grepl("ZipMap_Prd_519", name, ignore.case = TRUE) |
+  filter(grepl("ZipMap_Prd_522", name, ignore.case = TRUE) |
            grepl(paste0("ZipMap_Prd_", as.character(month(Sys.Date())), as.character(day(Sys.Date()))), name, ignore.case = TRUE)) %>%
   slice(nrow(.))
 
@@ -803,5 +805,5 @@ all_data <- rbind(Alameda_data, Austin_data, AZ_data, Boston_data, Chicago_data,
                   NC_data, NOLA_data, NYC_data, OK_data, Omaha_data, Oregon_data, Penn_data, Philly_data, Sacramento_data, 
                   SC_data, SD_data, SF_data, StLouis_data, Tarrant_data, WI_data, Manual_data)
 
-write_csv(all_data, "Data_log/all_data_May21_2020.csv")
+write_csv(all_data, "Data_log/all_data_May23_2020.csv")
 write_csv(all_data, "all_data_latest.csv")
