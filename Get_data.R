@@ -22,8 +22,8 @@ options(scipen = 999)
 #https://www.scdhec.gov/infectious-diseases/viruses/coronavirus-disease-2019-covid-19/sc-cases-county-zip-code-covid-19
 #South Carolina
 #South Carolina data
-SC_time <- mdy(05212020) ##CHANGE DATE
-SC_data <- extract_tables("~/Downloads/TableOption2 (2).pdf", output = "data.frame", method="stream")
+SC_time <- mdy(05262020) ##CHANGE DATE
+SC_data <- extract_tables("~/Downloads/TableOption2 (3).pdf", output = "data.frame", method="stream")
 SC_data <- bind_rows(lapply(SC_data, function(x){mutate_all(x, as.character)})) %>%
   filter(!is.na(Rep..Cases)) %>% rename(Positive=Rep..Cases, Geo_id=Zip) %>%
   mutate(Deaths=NA, Total=NA, Update_time=SC_time, Geo_id_type="ZCTA") %>% 
@@ -78,8 +78,8 @@ NYC_data <- fread("https://raw.githubusercontent.com/nychealth/coronavirus-data/
 Boston_time <- read_html("https://bphc.org/whatwedo/infectious-diseases/Infectious-Diseases-A-to-Z/covid-19/Pages/default.aspx") %>%
   html_nodes(xpath='//*[@id="WebPartWPQ3"]/div[1]/div[2]/p[3]/em') %>%
   html_text() %>%
-  { gsub("WEEKLY NEIGHBORHOOD DATA (Updated ", "", ., fixed=TRUE) } %>%
-  { gsub(")", "", ., fixed=TRUE) } %>%
+  { gsub(".*As of ", "", .) } %>%
+  { gsub(", there .*", "", .) } %>%
   { mdy(.) }
 
 Boston_data <- read_html("https://bphc.org/whatwedo/infectious-diseases/Infectious-Diseases-A-to-Z/covid-19/Pages/default.aspx") %>%
@@ -93,7 +93,7 @@ Boston_data <- read_html("https://bphc.org/whatwedo/infectious-diseases/Infectio
          Geo_id = gsub(".*-", "", Geo_id),
          Geo_id = gsub(" ", "", Geo_id),
          Geo_id = gsub(",", "_", Geo_id),
-         Geo_id = ifelse(Geo_id == "Missing/Other", "Unassigned", Geo_id),
+         Geo_id = ifelse(Geo_id == "Other", "Unassigned", Geo_id),
          Deaths=NA, Update_time=Boston_time, Geo_id_type="ZCTA aggregate") %>%
   filter(Geo_id != "Boston") %>% 
   mutate(Geo_id=as.character(Geo_id),
@@ -464,7 +464,7 @@ DeKalb_time <- read_html("https://www.dekalbhealth.net/covid-19dekalb/") %>%
 
 
 DeKalb_data <- read_html("https://www.dekalbhealth.net/covid-19dekalb/") %>%
-  html_nodes("table") %>% html_table() %>% `[[`(1) %>% slice(-1) %>%
+  html_nodes("table") %>% html_table() %>% `[[`(2) %>% slice(-1) %>%
   rename(Geo_id=X1, Positive = X3) %>%
   filter(Geo_id != "Grand Total") %>%
   mutate(Positive=ifelse(Positive=="<5", 0, Positive)) %>%
@@ -661,7 +661,7 @@ Austin_time <- read_html(paste0(Austin_links$url, "/2")) %>%
   { gsub(".*Date: ", "", .) } %>%
   { mdy(gsub(" .*", "", .)) }
 
-Austin_data <- fromJSON(paste0(Austin_links$url, "/2/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnGeometry=false&returnCentroid=false&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson"))$features$attributes %>%
+Austin_data <- fromJSON(paste0(Austin_links$url, "/0/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnGeometry=false&returnCentroid=false&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson"))$features$attributes %>%
   rename(Geo_id = ZIPCODE, Positive = Count_) %>%
   mutate(Total = NA, Geo_id_type="ZCTA", Update_time=Austin_time, Deaths=NA,
          Positive=ifelse(is.na(Positive), 0, Positive)) %>%
@@ -718,8 +718,8 @@ OK_data <- fread("https://storage.googleapis.com/ok-covid-gcs-public-download/ok
 ##Louisiana data
 
 Louisiana_links <- fromJSON("https://services5.arcgis.com/O5K6bb5dZVZcTo5M/ArcGIS/rest/services?f=pjson")$services %>%
-  filter(grepl("Tracts_05172020", name, ignore.case = TRUE) |
-           grepl(paste0("Tracts_", str_pad(as.character(month(Sys.Date())), 2, pad="0"), as.character(day(Sys.Date())), "2020"), name, ignore.case = TRUE)) %>%
+  filter(grepl("LA_2018_Tracts_05242020", name, ignore.case = TRUE) |
+           grepl(paste0("LA_2018_Tracts_", str_pad(as.character(month(Sys.Date())), 2, pad="0"), as.character(day(Sys.Date())), "2020"), name, ignore.case = TRUE)) %>%
   slice(nrow(.))
 
 Louisiana_time <- read_html(paste0(Louisiana_links$url, "/0")) %>%
@@ -783,6 +783,118 @@ Tarrant_data <- fromJSON("https://services8.arcgis.com/0emesQkjyT7tJv3q/ArcGIS/r
          Deaths=as.integer(Deaths),
          Source_geo="Tarrant County") %>%
   select(Geo_id, Geo_id_type, Positive, Total, Deaths, Update_time, Source_geo)
+
+##Santa Clara county data
+
+Santa_clara_time <- read_html("https://services2.arcgis.com/RiZWfy7B1r76pKTz/arcgis/rest/services/COVID_zip_FC/FeatureServer/0") %>%
+  html_node(xpath = "/html/body/div[2]") %>% html_text() %>%
+  { gsub(".*Date: ", "", .) } %>%
+  { mdy(gsub(" .*", "", .)) }
+  
+
+
+##Newark data
+
+
+Newark_data_1 <- fread("https://newark-dashboardcovid.trial.opendatasoft.com/explore/dataset/aggregates-test/download/?format=csv&timezone=America/New_York&lang=en&use_labels_for_header=true&csv_separator=%2C")
+
+Newark_time <- max(ymd(Newark_data_1$date))
+
+Newark_tests <- Newark_data_1 %>% 
+  mutate(patient_died=ifelse(patient_died=="U", "N", patient_died)) %>%
+  filter(status != "Pending" & status != "Inconclusive") %>%
+  group_by(zip_code, status) %>% 
+  summarize(total=sum(number_of_cases)) %>%
+  filter(zip_code %in% c("07106","07107","07104","07029","07105","07114","07112","07108","07103","07102")) %>%
+  pivot_wider(names_from = status, values_from = total) %>%
+  mutate(Negative=ifelse(is.na(Negative),0,Negative)) %>%
+  mutate(Total=Positive+Negative) %>%
+  rename(Geo_id=zip_code) %>%
+  select(Geo_id, Positive, Total)
+
+Newark_deaths <- Newark_data_1 %>% 
+  mutate(patient_died=ifelse(patient_died=="U", "N", patient_died)) %>%
+  filter(status=="Positive") %>%
+  group_by(zip_code, patient_died) %>% 
+  summarize(total=sum(number_of_cases)) %>%
+  filter(zip_code %in% c("07106","07107","07104","07029","07105","07114","07112","07108","07103","07102")) %>%
+  pivot_wider(names_from = patient_died, values_from = total) %>%
+  mutate(Y=ifelse(is.na(Y),0,Y)) %>%
+  rename(Deaths=Y, Geo_id=zip_code) %>%
+  select(Geo_id, Deaths)
+
+Newark_data <- left_join(Newark_tests, Newark_deaths, by="Geo_id") %>%
+  mutate(Geo_id_type="ZCTA", Update_time=Newark_time, Source_geo="Newark City") %>% ungroup() %>%
+  mutate(Geo_id=as.character(Geo_id),
+         Geo_id_type=as.character(Geo_id_type),
+         Positive=as.integer(Positive),
+         Total=as.integer(Total),
+         Deaths=as.integer(Deaths),
+         Source_geo="Tarrant County") %>%
+  select(Geo_id, Geo_id_type, Positive, Total, Deaths, Update_time, Source_geo)
+  
+#RI Data
+RI_time <- mdy(colnames(read_sheet("https://docs.google.com/spreadsheets/d/1n-zMS9Al94CPj_Tc3K7Adin-tN9x1RSjjx2UzJ4SV7Q/edit#gid=932150337", 
+                      "Zip Code of Cases", range = "B2")))
+RI_data <- read_sheet("https://docs.google.com/spreadsheets/d/1n-zMS9Al94CPj_Tc3K7Adin-tN9x1RSjjx2UzJ4SV7Q/edit#gid=932150337", 
+                      "Zip Code of Cases", range = "A4:C83") %>%
+  mutate(Geo_id_type="ZCTA", Update_time=RI_time, Source_geo="Rhode Island",
+         Total=NA, Deaths=NA, 
+         ZCTA=ifelse(ZCTA=="Pending further info", "Unassigned", ZCTA)) %>%
+  filter(ZCTA != "TOTAL") %>%
+  rename(Geo_id=ZCTA, Positive=`Rhode Island COVID-19 cases`) %>% 
+  mutate(Geo_id=as.character(Geo_id),
+         Geo_id_type=as.character(Geo_id_type),
+         Positive=as.integer(Positive),
+         Total=as.integer(Total),
+         Deaths=as.integer(Deaths)) %>%
+  select(Geo_id, Geo_id_type, Positive, Total, Deaths, Update_time, Source_geo)
+
+
+#Davidson County (TN)
+
+Davidson_data <- read_html("https://www.wkrn.com/community/health/coronavirus/data-details-number-of-covid-19-cases-in-nashville-by-zip-code/") %>%
+  html_nodes(xpath='//*[@id="main"]/article/div[1]/figure/table') %>%
+  html_table() %>% `[[`(1) %>%
+  rename(Geo_id = X1, Positive = X2) %>%
+  slice(-1) %>%
+  mutate(Geo_id_type="ZCTA", Update_time=mdy("05/26/2020"), Source_geo="Davidson County",
+         Total=NA, Deaths=NA, 
+         Geo_id=ifelse(Geo_id=="Missing", "Unassigned", Geo_id)) %>%
+  filter(Geo_id != "Rest of NDR") %>%
+  mutate(Geo_id=as.character(Geo_id),
+         Geo_id_type=as.character(Geo_id_type),
+         Positive=as.integer(Positive),
+         Total=as.integer(Total),
+         Deaths=as.integer(Deaths)) %>%
+  select(Geo_id, Geo_id_type, Positive, Total, Deaths, Update_time, Source_geo)
+  
+
+#Collin County  (TX)
+
+Collin_time <- read_html("https://services1.arcgis.com/fdWXd5OobWR1E3er/arcgis/rest/services/COVIDBy_ZIP_CODE_CLIP/FeatureServer/0") %>%
+  html_node(xpath = "/html/body/div[2]") %>% html_text() %>%
+  { gsub(".*Date: ", "", .) } %>%
+  { mdy(gsub(" .*", "", .)) }
+
+Collin_data <- fromJSON("https://services1.arcgis.com/fdWXd5OobWR1E3er/arcgis/rest/services/COVIDBy_ZIP_CODE_CLIP/FeatureServer/0/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&returnGeodetic=false&outFields=*&returnGeometry=false&returnCentroid=false&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson")$features$attributes %>%
+  rename(Geo_id = ZIP_NO, Positive = CollinInternalCaseNum) %>%
+  mutate(Total=NA, Deaths=NA, Geo_id_type="ZCTA", Update_time=Collin_time) %>%
+  mutate(Geo_id=as.character(Geo_id),
+         Geo_id_type=as.character(Geo_id_type),
+         Positive=as.integer(Positive),
+         Total=as.integer(Total),
+         Deaths=as.integer(Deaths),
+         Source_geo="Collin County") %>%
+  select(Geo_id, Geo_id_type, Positive, Total, Deaths, Update_time, Source_geo)
+
+
+  
+#Virginia data
+Virginia_data <- extract_tables("~/Downloads/ZCTA Table w_ Suppression Phone.pdf") %>%
+  { do.call(rbind, .)} %>% { as.data.frame(.)} %>%
+
+  SC_data <- extract_tables("~/Downloads/TableOption2 (3).pdf", output = "data.frame")
 
 
 Manual_data <- read_sheet("https://docs.google.com/spreadsheets/d/1bk33v5C09NSfOisxFIa5mjB9tyocAbpJybztc5tSLtU/edit?usp=sharing")
