@@ -1,0 +1,12 @@
+name: COVID_counties_explore
+title: COVID_counties_explore
+username:
+account: ssaha
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2422203
+bundleId: 3239478
+url: https://ssaha.shinyapps.io/COVID_counties_explore/
+when: 1591562088.6127
+asMultiple: FALSE
+asStatic: FALSE
