@@ -1,0 +1,201 @@
+---
+title: "Exploring COVID at county-level"
+output: html_notebook
+---
+
+Read in packages
+```{r}
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(tigris)
+library(sp)
+library(leaflet)
+library(spdep)
+```
+
+
+```{r}
+counties_covid <- read_csv("data/covid_confirmed_usafacts.csv") %>% 
+  select(countyFIPS, `County Name`, State, stateFIPS, `5/22/20`, `5/1/20`, `4/15/20`, `4/1/20`) %>%
+  rename(Cases_May22 = `5/22/20`, Cases_May01 = `5/1/20`, Cases_Apr15 = `4/15/20`, Cases_Apr01 = `4/1/20`) %>% 
+  filter(countyFIPS > 1)
+
+counties_pop <- read_csv("data/covid_county_population_usafacts.csv") %>% 
+  select(countyFIPS, State, population) 
+
+counties_urbanrural <- read_csv("data/NCHSURCodes2013.csv") %>% 
+  select(`FIPS code`, `CBSA title`, `2013 code`) %>%
+  rename(countyFIPS = `FIPS code`, CBSA_title=`CBSA title`, urban_rural_code=`2013 code`)
+
+counties_msa <- read_csv("data/County_MSA_CBSA.csv") %>% 
+  mutate(countyFIPS=as.numeric(paste0(`FIPS State Code`, `FIPS County Code`))) %>%
+  rename(MMSA=`Metropolitan/Micropolitan Statistical Area`,
+         central=`Central/Outlying County`) %>%
+  select(countyFIPS, MMSA, central)
+```
+
+
+```{r}
+counties_data <- counties_covid %>% 
+  left_join(counties_pop, by=c("countyFIPS", "State")) %>% 
+  left_join(counties_urbanrural, by="countyFIPS") %>%
+  left_join(counties_msa, by="countyFIPS") %>%
+  mutate(May22_cases_per_100000 = (Cases_May22 / population)*100000,
+         May01_cases_per_100000 = (Cases_May01 / population)*100000,
+         Apr15_cases_per_100000 = (Cases_Apr15 / population)*100000,
+         Apr01_cases_per_100000 = (Cases_Apr01 / population)*100000)
+  
+```
+
+```{r}
+urban_cases_Apr01 <- counties_data %>% filter(urban_rural_code==1 | urban_rural_code==2) %>% {sum(.$Cases_Apr01)}
+urban_cases_Apr15 <- counties_data %>% filter(urban_rural_code==1 | urban_rural_code==2) %>% {sum(.$Cases_Apr15)}
+urban_cases_May01 <- counties_data %>% filter(urban_rural_code==1 | urban_rural_code==2) %>% {sum(.$Cases_May01)}
+urban_cases_May22 <- counties_data %>% filter(urban_rural_code==1 | urban_rural_code==2) %>% {sum(.$Cases_May22)}
+urban_pop <- counties_data %>% filter(urban_rural_code==1 | urban_rural_code==2) %>% {sum(.$population)}
+total_cases_Apr01 <- counties_data %>% {sum(.$Cases_Apr01)}
+total_cases_Apr15 <- counties_data %>% {sum(.$Cases_Apr15)}
+total_cases_May01 <- counties_data %>% {sum(.$Cases_May01)}
+total_cases_May22 <- counties_data %>% {sum(.$Cases_May22)}
+total_pop <- counties_data %>% {sum(.$population)}
+
+urban_cases_Apr01 / total_cases_Apr01
+urban_cases_Apr15 / total_cases_Apr15
+urban_cases_May01 / total_cases_May01
+urban_cases_May22 / total_cases_May22
+urban_pop / total_pop
+```
+
+
+```{r}
+urban_cases_Apr01 <- counties_data %>% 
+  filter(MMSA=="Metropolitan Statistical Area" & central=="Central") %>% {sum(.$Cases_Apr01)}
+urban_cases_Apr15 <- counties_data %>% filter(MMSA=="Metropolitan Statistical Area" & central=="Central") %>% {sum(.$Cases_Apr15)}
+urban_cases_May01 <- counties_data %>% filter(MMSA=="Metropolitan Statistical Area" & central=="Central") %>% {sum(.$Cases_May01)}
+urban_cases_May22 <- counties_data %>% filter(MMSA=="Metropolitan Statistical Area" & central=="Central") %>% {sum(.$Cases_May22)}
+urban_pop <- counties_data %>% filter(MMSA=="Metropolitan Statistical Area" & central=="Central") %>% {sum(.$population)}
+
+
+top_urban_cases_May01 <- counties_data %>% filter(MMSA=="Metropolitan Statistical Area" & central=="Central" & Cases_May01 > 1000) %>% {sum(.$Cases_May01)}
+top_cases_May01 <- counties_data %>% filter(Cases_May01 > 1000) %>% {sum(.$Cases_May01)}
+top_urban_pop <- counties_data %>% filter(MMSA=="Metropolitan Statistical Area" & central=="Central" & Cases_May01 > 1000) %>% {sum(.$population)}
+top_cases_pop <- counties_data %>% filter(Cases_May01 > 1000) %>% {sum(.$population)}
+
+total_cases_Apr01 <- counties_data %>% {sum(.$Cases_Apr01)}
+total_cases_Apr15 <- counties_data %>% {sum(.$Cases_Apr15)}
+total_cases_May01 <- counties_data %>% {sum(.$Cases_May01)}
+total_cases_May22 <- counties_data %>% {sum(.$Cases_May22)}
+total_pop <- counties_data %>% {sum(.$population)}
+
+urban_cases_Apr01 / total_cases_Apr01
+urban_cases_Apr15 / total_cases_Apr15
+urban_cases_May01 / total_cases_May01
+urban_cases_May22 / total_cases_May22
+urban_pop / total_pop
+
+top_urban_cases_May01 / total_cases_May01
+top_urban_pop / total_pop
+
+top_cases_May01 / total_cases_May01
+top_cases_pop / total_pop
+
+```
+
+```{r}
+case_ratio <- vector()
+pop_ratio <- vector()
+RR <- vector()
+diff <- vector()
+for (i in seq(0,max(counties_data$Cases_May01),20)){
+  cases <-  counties_data %>% filter(Cases_May01 > i) %>% {sum(.$Cases_May01)}
+  pop <- counties_data %>% filter(Cases_May01 > i) %>% {sum(.$population)}
+  case_ratio <- append(case_ratio, cases / total_cases_May01)
+  pop_ratio <- append(pop_ratio, pop / total_pop)
+  RR = append(RR, (cases / pop) / ((total_cases_May01-cases)/(total_pop-pop)))
+  diff = append(diff, (cases / total_cases_May01)- (pop / total_pop))
+}
+```
+
+```{r}
+plot <- data.frame(thresh=seq(0,max(counties_data$Cases_May01),20),
+                   case_ratio=case_ratio, 
+                   pop_ratio=pop_ratio,
+                   diff=diff,
+                   RR=RR)
+
+ggplot(plot) + geom_line(aes(x=thresh, y=case_ratio), color="red") +
+  geom_line(aes(x=thresh, y=pop_ratio)) + 
+  geom_line(aes(x=thresh, y=diff)) + 
+  geom_line(aes(x=thresh, y=RR/10)) + xlim(0,10000)
+
+```
+
+```{r}
+counties_data_hotspots <- counties_data %>%
+  filter(Cases_May01 > 1000) 
+write_csv(counties_data_hotspots, "data/covid_hotspot_counties.csv")
+```
+
+
+
+```{r}
+counties <- counties(cb=TRUE, resolution="20m")
+states <- states(cb=TRUE, resolution="20m", refresh=TRUE)
+```
+
+```{r}
+counties@data$GEOID <- as.integer(counties@data$GEOID)
+counties_data_map <- counties
+counties_data_map@data <- left_join(counties_data_map@data, counties_data, by=c("GEOID"="countyFIPS"))
+counties_urban <- counties_data_map[counties_data_map$urban_rural_code==1 & !is.na(counties_data_map$urban_rural_code),]
+counties_hotspots <- counties_data_map[counties_data_map$GEOID %in% counties_data_hotspots$countyFIPS,]
+```
+
+```{r}
+labels <- sprintf("<strong>%s , %s</strong> ,  %g<br/> %g Cases<br/> %g per 100k<br/> %s",
+  counties_data_map$NAME, counties_data_map$State, counties_data_map$urban_rural_code,
+  counties_data_map$Cases_May01, counties_data_map$May01_cases_per_100000,
+  counties_data_map$CBSA_title
+) %>% lapply(htmltools::HTML)
+
+leaflet(counties_data_map) %>% addTiles() %>%
+  addPolygons(data=counties_urban, color = "#000000", weight = 4) %>%
+  addPolygons(data=counties_hotspots, color = "#000000", weight = 2) %>%
+  addPolygons(color = "#000000", weight = 0.5, 
+              fillColor = ~colorQuantile("YlOrRd", Cases_May01, n = 9)(Cases_May01),
+              fillOpacity = 0.8,
+              label = labels,
+  labelOptions = labelOptions(
+    style = list("font-weight" = "normal", padding = "3px 8px"),
+    textsize = "15px",
+    direction = "auto")) 
+  
+  
+```
+
+```{r}
+counties_data_adj <- poly2nb(counties_data_map, queen=TRUE, row.names = as.character(counties_data_map$GEOID))
+
+```
+
+```{r}
+select_county_geoids <- vector()
+for (i in 1:nrow(counties_data_map@data)){
+  if (!is.na(counties_data_map@data$urban_rural_code[i]) & counties_data_map@data$urban_rural_code[i]==1 &
+      counties_data_map@data$Cases_May01[i] > 1000){
+    select_county_geoids <- c(select_county_geoids, counties_data_map@data$GEOID[i])
+    select_county_geoids <- c(select_county_geoids, counties_data_map@data$GEOID[counties_data_adj[[i]]])
+  }
+}
+
+select_county_geoids <- unique(select_county_geoids)
+
+counties_data_map@data$GEOID[(counties_data_map@data$GEOID %in% select_county_geoids) & 
+                               (counties_data_map@data$urban_rural_code <=2) ]
+```
+
+```{r}
+counties_filt <- counties[as.numeric(counties$GEOID) %in% counties_data_hotspots$countyFIPS,]
+```
+
