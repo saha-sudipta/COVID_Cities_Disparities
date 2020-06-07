@@ -198,4 +198,7 @@ counties_data_map@data$GEOID[(counties_data_map@data$GEOID %in% select_county_ge
 ```{r}
 counties_filt <- counties[as.numeric(counties$GEOID) %in% counties_data_hotspots$countyFIPS,]
 ```
+<<<<<<< HEAD
 
+=======
+>>>>>>> e9d30f4bac020300a2e52152a74c4217d7a9ce8d
